@@ -12,6 +12,7 @@ app.use(bodyParser.json());
 let sharedPage = null;
 let sharedBrowser = null;
 let isProcessing = false;
+let shouldStop = false;
 let selectedBranch = "2";
 const dataQueue = [];
 
@@ -89,7 +90,14 @@ async function selectDropdownHuman(page, selector, labelText) {
 
 async function autoFillLocationAndOpenForm() {
     if (!sharedPage) return;
+    broadcast({ type: "SETUP_STARTED" });
     try {
+        const isSelectionPage = await sharedPage.$("select#accomStay_cboPROVINCE_ID");
+        if (!isSelectionPage) {
+            console.log("[SYSTEM] Not on selection page. Navigating back...");
+            await sharedPage.goto("https://dichvucong.bocongan.gov.vn/bo-cong-an/tiep-nhan-online/chon-truong-hop-ho-so?ma-thu-tuc-public=26346");
+            await sharedPage.waitForLoadState("networkidle");
+        }
         console.log(`\n[STEP 1] Setup Accommodation (Branch ${selectedBranch})`);
         await selectDropdownHuman(sharedPage, "select#accomStay_cboPROVINCE_ID", "Thành phố Cần Thơ");
         await selectDropdownHuman(sharedPage, "select#accomStay_cboADDRESS_ID", "Phường Long Tuyền");
@@ -114,20 +122,31 @@ async function autoFillLocationAndOpenForm() {
     }
 }
 
+function abortIfStopped() {
+    if (shouldStop) {
+        const err = new Error("STOPPED_BY_USER");
+        err.isStop = true;
+        throw err;
+    }
+}
+
 async function fillGuestData(taskItem) {
     if (!sharedPage) return;
     const { data, index } = taskItem;
 
     try {
         broadcast({ type: "PROCESSING", index });
+        abortIfStopped();
 
         if (!(await sharedPage.isVisible("#addpersonLT"))) {
             await sharedPage.click("a#btnAddPersonLT");
             await sharedPage.waitForSelector("#addpersonLT", { state: 'visible', timeout: 5000 });
         }
+        abortIfStopped();
 
         await sharedPage.fill("input#guest_txtCITIZENNAME", (data.ho_ten || '').toUpperCase(), { timeout: 3000 });
         await sharedPage.fill("input#guest_txtIDCARD_NUMBER", data.cccd || '', { timeout: 3000 });
+        abortIfStopped();
 
         const dob = data.ngay_birth || data.ngay_sinh || '';
         if (dob) {
@@ -142,11 +161,16 @@ async function fillGuestData(taskItem) {
                 }
             }, dob);
         }
+        abortIfStopped();
 
         await fillSelect2(sharedPage, "#select2-guest_cboGENDER_ID-container", data.gioi_tinh || '');
+        abortIfStopped();
         await fillSelect2(sharedPage, "#select2-guest_cboCOUNTRY-container", data.quoc_gia || 'Cộng hòa xã hội chủ nghĩa Việt Nam');
+        abortIfStopped();
         await fillSelect2(sharedPage, "#select2-guest_cboRDPROVINCE_ID-container", data.tinh || '');
+        abortIfStopped();
         await fillSelect2(sharedPage, "#select2-guest_cboRDADDRESS_ID-container", data.xa || '');
+        abortIfStopped();
 
         const nationality = data.quoc_tich || 'Việt Nam';
         await sharedPage.waitForSelector("#guest_mulNATIONALITY", { state: 'visible', timeout: 5000 });
@@ -161,13 +185,17 @@ async function fillGuestData(taskItem) {
                 select.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }, nationality);
+        abortIfStopped();
 
         await fillSelect2(sharedPage, "#select2-guest_cboETHNIC_ID-container", data.dan_toc || 'Kinh');
+        abortIfStopped();
         await fillSelect2(sharedPage, "#select2-guest_cboOCCUPATION-container", data.nghe_nghiep || 'Tự do');
+        abortIfStopped();
         await sharedPage.fill("input#guest_txtROOM", data.so_phong || '', { timeout: 3000 });
         await sharedPage.fill("input#guest_txtPLACE_OF_WORK", data.noi_lam_viec || '', { timeout: 3000 });
         await sharedPage.fill("textarea#guest_txtREASON", data.ly_do || 'làm việc', { timeout: 3000 });
         await sharedPage.fill("textarea#guest_txtRDADDRESS", data.dia_chi_chi_tiet || '', { timeout: 3000 });
+        abortIfStopped();
 
         if (data.thoi_gian_luu_tru) {
             await sharedPage.evaluate((sd) => {
@@ -181,23 +209,39 @@ async function fillGuestData(taskItem) {
                 if (el) el.value = ed;
             }, data.luu_tru_den);
         }
+        abortIfStopped();
 
         await sharedPage.focus("input#guest_txtCITIZENNAME");
         await sharedPage.evaluate(() => document.activeElement.blur());
+        abortIfStopped();
 
         await sharedPage.click("#btnSaveNLT", { timeout: 3000 });
         console.log(`[SUCCESS] Saved: ${data.ho_ten}`);
         broadcast({ type: "COMPLETED", index });
 
-        await new Promise(r => setTimeout(r, 2000));
+        const delay = (ms) => new Promise(resolve => {
+            const start = Date.now();
+            const interval = setInterval(() => {
+                if (shouldStop || Date.now() - start >= ms) {
+                    clearInterval(interval);
+                    resolve();
+                }
+            }, 100);
+        });
+        await delay(2000);
+        abortIfStopped();
 
         try {
             await sharedPage.click("a#btnAddPersonLT", { timeout: 3000 });
             await sharedPage.waitForSelector("#addpersonLT", { state: 'visible', timeout: 10000 });
-            await new Promise(r => setTimeout(r, 1000));
+            await delay(1000);
         } catch (e) { }
 
     } catch (e) {
+        if (e.isStop) {
+            console.log(`[STOP] Aborted processing for ${data.ho_ten}`);
+            return;
+        }
         broadcast({ type: "ERROR", index });
         console.error(`[SKIP] Error for ${data.ho_ten}:`, e.message);
     }
@@ -205,7 +249,14 @@ async function fillGuestData(taskItem) {
 
 async function processQueue() {
     isProcessing = true;
+    shouldStop = false;
     while (dataQueue.length > 0) {
+        if (shouldStop) {
+            console.log("[SYSTEM] Automation stopped by user.");
+            dataQueue.length = 0; // Clear the queue
+            broadcast({ type: "STOPPED" });
+            break;
+        }
         const taskItem = dataQueue.shift();
         await fillGuestData(taskItem);
     }
@@ -220,6 +271,11 @@ app.post('/send-to-web', (req, res) => {
     });
     if (!isProcessing) processQueue();
     res.json({ status: "started" });
+});
+
+app.post('/stop', (req, res) => {
+    shouldStop = true;
+    res.json({ status: "stopping" });
 });
 
 app.post('/set-branch', (req, res) => {

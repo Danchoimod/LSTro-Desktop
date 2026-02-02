@@ -15,7 +15,7 @@ function createWindow() {
         },
         title: "Quản lý Khai báo Lưu trú",
         autoHideMenuBar: true,
-        icon: path.join(__dirname, 'renderer', 'favicon.ico') // if exists
+        icon: path.join(__dirname, 'renderer', 'assets', 'app_icon.ico')
     });
 
     // Load the login page from the renderer folder

@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Hệ thống Quản lý Lưu trú - Dashboard</title>
+    <link rel="icon" href="assets/app_icon.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
@@ -149,18 +150,60 @@
         .context-menu-item .material-symbols-outlined {
             font-size: 18px;
         }
+
+        /* Blocking Overlay */
+        #systemOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 
 <body
     class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 overflow-hidden h-screen flex flex-col">
+
+    <!-- System Initialization Overlay -->
+    <div id="systemOverlay">
+        <div
+            class="bg-white p-8 rounded-2xl shadow-2xl border border-slate-200 flex flex-col items-center max-w-sm text-center">
+            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                <span class="material-symbols-outlined text-4xl text-primary animate-spin">sync</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Đang thiết lập hệ thống</h3>
+            <p class="text-sm text-slate-500 mb-6" id="systemOverlayProgress">Vui lòng đợi trong khi automation đang
+                chọn chi nhánh và chuẩn bị form nhập liệu...</p>
+            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div class="bg-primary h-full w-2/3 animate-[loading_2s_infinite_linear]"></div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes loading {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(200%);
+            }
+        }
+    </style>
+
     <!-- Top Navigation Bar -->
     <header
         class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark flex items-center justify-between px-6 shrink-0 z-10">
         <div class="flex items-center gap-6">
             <div class="flex items-center gap-2 text-primary">
                 <span class="material-symbols-outlined text-3xl font-bold">domain</span>
-                <h2 class="text-lg font-bold tracking-tight text-slate-800 dark:text-white">Residence Manager</h2>
+                <h2 class="text-lg font-bold tracking-tight text-slate-800 dark:text-white">LSTro Manager</h2>
             </div>
             <div class="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2"></div>
             <div class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
@@ -251,11 +294,16 @@
                 </div>
             </div>
             <!-- New Entry Button -->
-            <div class="p-4 bg-white dark:bg-background-dark border-t border-slate-100 dark:border-slate-800">
+            <div
+                class="p-4 bg-white dark:bg-background-dark border-t border-slate-100 dark:border-slate-800 flex gap-2">
                 <button id="sendBtn" onclick="sendToPython()"
-                    class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span class="material-symbols-outlined">send</span>
-                    GỬI TRÌNH DUYỆT (<span id="count">0</span>)
+                    GỬI (<span id="count">0</span>)
+                </button>
+                <button id="stopBtn" onclick="stopAutomation()"
+                    class="hidden bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-200">
+                    <span class="material-symbols-outlined">stop</span>
                 </button>
             </div>
         </aside>
@@ -897,9 +945,11 @@
 
         async function performSend(itemsToSend) {
             const btn = document.getElementById('sendBtn');
+            const stopBtn = document.getElementById('stopBtn');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<span class="material-symbols-outlined animate-spin">sync</span> ĐANG GỬI...`;
+            btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">sync</span> ĐANG GỬI...`;
             btn.disabled = true;
+            stopBtn.classList.remove('hidden');
 
             try {
                 await fetch('http://127.0.0.1:8000/send-to-web', {
@@ -909,9 +959,22 @@
                 });
             } catch (error) {
                 alert("Lỗi kết nối Automation Server!");
+                stopBtn.classList.add('hidden');
             } finally {
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
+                // We keep stopBtn visible until processing is finished or stopped.
+                // However, the current performSend only triggers the start on the server.
+                // The actual finish is signaled via WebSocket.
+            }
+        }
+
+        async function stopAutomation() {
+            try {
+                await fetch('http://127.0.0.1:8000/stop', { method: 'POST' });
+                document.getElementById('stopBtn').classList.add('hidden');
+            } catch (e) {
+                console.error("Lỗi dừng:", e);
             }
         }
 
@@ -920,9 +983,36 @@
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+
+                // Handle System Setup Status
+                if (data.type === 'SETUP_STARTED') {
+                    const overlay = document.getElementById('systemOverlay');
+                    overlay.style.display = 'flex';
+                    overlay.style.opacity = '1';
+                    document.getElementById('systemOverlayProgress').innerText = "Đang chọn chi nhánh và thiết lập form...";
+                }
+                else if (data.type === 'BRANCH_SELECTED') {
+                    const overlay = document.getElementById('systemOverlay');
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 300);
+                }
+                else if (data.type === 'BRANCH_ERROR') {
+                    document.getElementById('systemOverlayProgress').innerHTML = `<span class="text-red-500 font-bold">LỖI: ${data.message}</span><br>Vui lòng kiểm tra trình duyệt và thử lại.`;
+                }
+
                 if (data.index !== undefined && guestList[data.index]) {
                     guestList[data.index].status = data.type;
                     renderTable();
+                }
+
+                if (data.type === 'COMPLETED' || data.type === 'ERROR' || data.type === 'STOPPED') {
+                    // Check if there are no more processing items to hide stop button
+                    const anyInProgress = guestList.some(g => g.status === 'PROCESSING' || g.status === 'PENDING');
+                    if (!anyInProgress) {
+                        document.getElementById('stopBtn').classList.add('hidden');
+                    }
                 }
             } catch (e) { console.error(e); }
         };
