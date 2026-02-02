@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản lý Lưu trú v2.0.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Full Screen Content Wrapper */
+        .win10-content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex-grow: 1;
+            height: calc(100vh - 30px);
+        }
+
+        @media (max-width: 768px) {
+            .win10-content {
+                grid-template-columns: 1fr;
+            }
+
+            .win10-sidebar {
+                display: none;
+            }
+        }
+
+        /* Sidebar kiểu Settings Windows 10 (Full Height) */
+        .win10-sidebar {
+            background-color: #f2f2f2;
+            padding: 40px 30px;
+            border-right: 1px solid #e5e5e5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .win10-main {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+        }
+
+        /* QR Area */
+        .qr-viewport {
+            width: 280px;
+            height: 280px;
+            border: 1px solid #d1d1d1;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Nút kiểu Windows 10 */
+        .win10-btn {
+            background-color: #cccccc;
+            border: 2px solid transparent;
+            padding: 8px 32px;
+            font-size: 14px;
+            min-width: 120px;
+            transition: all 0.1s;
+            cursor: pointer;
+        }
+
+        .win10-btn:hover {
+            border-color: #7a7a7a;
+            background-color: #d1d1d1;
+        }
+
+        .win10-btn:active {
+            background-color: #999999;
+            border-color: #0078d7;
+        }
+
+        .win10-btn-primary {
+            background-color: #0078d7;
+            color: white;
+        }
+
+        .win10-btn-primary:hover {
+            background-color: #005a9e;
+        }
+
+        /* Taskbar/Status Bar kiểu Windows 10 ở dưới cùng màn hình */
+        .win10-status-bar {
+            height: 30px;
+            background-color: #0078d7;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            justify-content: space-between;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .step-icon {
+            color: #0078d7;
+            font-size: 20px;
+            margin-top: 2px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .app-header {
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="win10-content">
+        <!-- Sidebar hướng dẫn -->
+        <div class="win10-sidebar">
+            <div class="app-header">
+                <div class="flex items-center gap-3 mb-2">
+                    <i class="fa-solid fa-hotel text-blue-600 text-2xl"></i>
+                    <h1 class="text-lg font-bold">Hệ thống Lưu trú</h1>
+                </div>
+                <p class="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Phiên bản 2.0.4</p>
+            </div>
+
+            <h2 class="text-2xl font-light mb-8">Xác thực tài khoản</h2>
+
+            <div class="step-item">
+                <i class="fa-solid fa-mobile-screen step-icon"></i>
+                <div>
+                    <p class="text-sm font-semibold">1. Mở ứng dụng VNeID</p>
+                    <p class="text-xs text-gray-600 leading-relaxed">Đăng nhập vào ứng dụng trên thiết bị di động của
+                        bạn.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <i class="fa-solid fa-qrcode step-icon"></i>
+                <div>
+                    <p class="text-sm font-semibold">2. Quét mã QR</p>
+                    <p class="text-xs text-gray-600 leading-relaxed">Sử dụng tính năng "Quét mã" tại màn hình trang chủ
+                        ứng dụng.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <i class="fa-solid fa-user-check step-icon"></i>
+                <div>
+                    <p class="text-sm font-semibold">3. Hoàn tất</p>
+                    <p class="text-xs text-gray-600 leading-relaxed">Kiểm tra thông tin trên điện thoại và nhấn xác
+                        nhận.</p>
+                </div>
+            </div>
+
+            <div class="mt-auto p-4 bg-white border border-gray-200">
+                <p class="text-[10px] text-gray-500 flex items-start gap-3">
+                    <i class="fa-solid fa-shield-check text-blue-500 text-sm"></i>
+                    <span>Hệ thống sử dụng kết nối bảo mật AES-256 mã hóa trực tiếp với máy chủ Bộ Công An.</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Main Auth Area -->
+        <div class="win10-main">
+            <!-- Loading -->
+            <div id="loadingState" class="text-center">
+                <div class="mb-6">
+                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600"></i>
+                </div>
+                <p class="text-base text-gray-600">Đang khởi tạo kênh truyền an toàn...</p>
+            </div>
+
+            <!-- QR -->
+            <div id="qrState" class="hidden flex flex-col items-center">
+                <div class="qr-viewport mb-8">
+                    <img id="qrImage" src="" alt="QR" class="w-full h-full p-4 object-contain">
+
+                    <!-- Expired Overlay -->
+                    <div id="qrExpiredOverlay"
+                        class="hidden absolute inset-0 bg-white/95 flex flex-col items-center justify-center p-6 text-center">
+                        <i class="fa-solid fa-clock-rotate-left text-red-500 text-3xl mb-4"></i>
+                        <p class="text-sm font-bold text-gray-800 mb-4">PHIÊN HẾT HẠN</p>
+                        <button onclick="retryGetQR()" class="win10-btn win10-btn-primary text-xs">TẠO MÃ MỚI</button>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Quét mã QR để đăng nhập</h3>
+                <p class="text-sm text-gray-400">Mã QR sẽ tự động cập nhật sau mỗi 60 giây</p>
+            </div>
+
+            <!-- Error -->
+            <div id="errorState" class="hidden text-center max-w-md px-6">
+                <i class="fa-solid fa-circle-exclamation text-red-500 text-6xl mb-8"></i>
+                <h3 class="text-2xl font-bold mb-3 text-gray-800">Lỗi kết nối dịch vụ</h3>
+                <p class="text-gray-500 mb-8 leading-relaxed">Không thể thiết lập kết nối tới cổng xác thực VNeID. Vui
+                    lòng kiểm tra lại đường truyền internet hoặc cấu hình Proxy của đơn vị.</p>
+                <button onclick="retryGetQR()" class="win10-btn win10-btn-primary">THỬ LẠI</button>
+            </div>
+
+            <!-- Success -->
+            <div id="successState" class="hidden text-center">
+                <div
+                    class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+                    <i class="fa-solid fa-check text-4xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800">Xác thực thành công</h3>
+                <p class="text-gray-500 mt-2">Hệ thống đang tải hồ sơ đơn vị, vui lòng chờ...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar (Windows 10 Taskbar Style) -->
+    <div class="win10-status-bar">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal text-[10px]"></i>
+                <span id="statusText">Trạng thái: Sẵn sàng</span>
+            </div>
+            <span class="opacity-30">|</span>
+            <span>Máy chủ: vneid.bca.gov.vn (P1)</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <span>Phiên làm việc: <span id="sessId" class="font-mono text-blue-200">---</span></span>
+            <div class="flex items-center gap-2">
+                <i class="fa-regular fa-clock"></i>
+                <span id="currentTime">00:00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let qrReceived = false;
+
+        // Init Session ID
+        document.getElementById('sessId').innerText = Math.random().toString(36).substr(2, 8).toUpperCase();
+
+        // Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString('vi-VN');
+        }, 1000);
+
+        function switchState(stateId) {
+            const states = ['loadingState', 'qrState', 'errorState', 'successState'];
+            states.forEach(id => {
+                document.getElementById(id).classList.toggle('hidden', id !== stateId);
+            });
+        }
+
+        function showQR(base64Image) {
+            switchState('qrState');
+            document.getElementById('qrImage').src = base64Image;
+            document.getElementById('qrExpiredOverlay').classList.add('hidden');
+            qrReceived = true;
+            document.getElementById('statusText').innerText = "Trạng thái: Đang chờ quét mã";
+        }
+
+        function showQRExpired() {
+            document.getElementById('qrExpiredOverlay').classList.remove('hidden');
+            document.getElementById('statusText').innerText = "Trạng thái: Mã phiên hết hạn";
+        }
+
+        function showError() {
+            switchState('errorState');
+            document.getElementById('statusText').innerText = "Trạng thái: Lỗi hệ thống";
+        }
+
+        function retryGetQR() {
+            switchState('loadingState');
+            qrReceived = false;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'REQUEST_QR' }));
+            } else {
+                connectWebSocket();
+            }
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ action: 'REQUEST_QR' }));
+            };
+
+            ws.onerror = () => {
+                if (!qrReceived) setTimeout(showError, 2000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'QR_CODE') showQR(data.data);
+                    else if (data.type === 'QR_EXPIRED') showQRExpired();
+                    else if (data.type === 'LOGIN_SUCCESS') {
+                        switchState('successState');
+                        setTimeout(() => window.location.href = 'index.html', 2000);
+                    }
+                } catch (e) { console.error(e); }
+            };
+
+            ws.onclose = () => { if (!qrReceived) showError(); };
+        }
+
+        window.onload = () => {
+            connectWebSocket();
+            // Timeout if no response
+            setTimeout(() => { if (!qrReceived) showError(); }, 10000);
+        };
+    </script>
+</body>
+
+</html>
